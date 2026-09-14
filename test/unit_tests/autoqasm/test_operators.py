@@ -608,23 +608,41 @@ if (__bool_3__) {
     assert prog.build().to_ir() == expected
 
 
-def test_comparison_chained_out_of_range_upper_bound_not_dropped() -> None:
-    """A value that fails only the upper bound of a chained comparison must
-    not take the ``if`` branch. This is an end-to-end regression test for a
-    bug where ``0 <= n < 10`` compiled as though it were just ``0 <= n``,
-    silently discarding the ``n < 10`` bound."""
+def test_comparison_chained_multiple_operators() -> None:
+    """Tests that every bound of a longer chain is kept."""
 
     @aq.main
     def prog():
-        n = 1000  # satisfies the lower bound but not the upper bound
-        if 0 <= n < 10:
+        a = measure(0)
+        b = measure(1)
+        c = measure(2)
+        if 4 < a <= b <= c < 8:
             h(0)
-        else:
-            x(0)
 
     ir = prog.build().to_ir()
-    assert "x __qubits__[0];" in ir
-    assert "h __qubits__[0];" not in ir
+    assert "a > 4" in ir
+    assert "a <= b" in ir
+    assert "b <= c" in ir
+    assert "c < 8" in ir
+
+
+def test_comparison_chained_with_equality_operator() -> None:
+    """A chain containing an operator AutoQASM does not overload is left to
+    AutoGraph's own decomposition, which keeps every bound."""
+
+    @aq.main
+    def prog():
+        a = measure(0)
+        b = measure(1)
+        c = measure(2)
+        if 4 < a < b == c < 8:
+            h(0)
+
+    ir = prog.build().to_ir()
+    assert "a > 4" in ir
+    assert "a < b" in ir
+    assert "b == c" in ir
+    assert "c < 8" in ir
 
 
 def test_comparison_ops_py() -> None:
@@ -640,7 +658,9 @@ def test_comparison_ops_py() -> None:
         f = a >= b
         g = 1.2
         h = a <= g
-        assert all([c, d, not e, not f, h])
+        i = 0 <= a < b
+        j = 0 <= b < a
+        assert all([c, d, not e, not f, h, i, not j])
 
     expected = """OPENQASM 3.0;"""
     assert prog.build().to_ir() == expected

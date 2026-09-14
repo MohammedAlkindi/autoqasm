@@ -32,18 +32,6 @@ class ComparisonTransformer(converter.Base):
     def visit_Compare(self, node: ast.stmt) -> ast.stmt:
         """Transforms a comparison node.
 
-        Python represents a chained comparison such as ``a < b < c`` as a
-        single ``ast.Compare`` node with multiple ``ops``/``comparators``
-        (``ops=[Lt, Lt]``, ``comparators=[b, c]``), not as nested binary
-        comparisons. It is rewritten here as a conjunction of pairwise
-        comparisons (``a < b and b < c``), matching CPython's own evaluation
-        of chained comparisons and mirroring the identical decomposition
-        AutoGraph performs upstream for the operators it overloads
-        (``malt.converters.logical_expressions.LogicalExpressionTransformer``).
-        Without this, only the first ``op``/``comparator`` pair was ever
-        converted and every subsequent bound in the chain was silently
-        dropped.
-
         Args:
             node (ast.stmt): AST node to transform.
 

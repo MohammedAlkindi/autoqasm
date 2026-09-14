@@ -579,6 +579,54 @@ if (__bool_1__) {
     assert prog.build().to_ir() == expected
 
 
+def test_comparison_chained() -> None:
+    """Tests that a chained comparison (``a < b < c``) is compiled as a
+    conjunction of both bounds instead of silently dropping every bound
+    after the first."""
+
+    @aq.main
+    def prog():
+        a = measure(0)
+        if 0 <= a < 1:
+            h(0)
+
+    expected = """OPENQASM 3.0;
+bit a;
+qubit[1] __qubits__;
+bit __bit_0__;
+__bit_0__ = measure __qubits__[0];
+a = __bit_0__;
+bool __bool_1__;
+__bool_1__ = a >= 0;
+bool __bool_2__;
+__bool_2__ = a < 1;
+bool __bool_3__;
+__bool_3__ = __bool_1__ && __bool_2__;
+if (__bool_3__) {
+    h __qubits__[0];
+}"""
+    assert prog.build().to_ir() == expected
+
+
+def test_comparison_chained_out_of_range_upper_bound_not_dropped() -> None:
+    """A value that fails only the upper bound of a chained comparison must
+    not take the ``if`` branch. This is an end-to-end regression test for a
+    bug where ``0 <= n < 10`` compiled as though it were just ``0 <= n``,
+    silently discarding the ``n < 10`` bound."""
+
+    @aq.main
+    def prog():
+        n = 1000  # satisfies the lower bound but not the upper bound
+        if 0 <= n < 10:
+            h(0)
+        else:
+            x(0)
+
+    ir = prog.build().to_ir()
+    assert "x __qubits__[0];" in ir
+    assert "h __qubits__[0];" not in ir
+
+
 def test_comparison_ops_py() -> None:
     """Tests the comparison aq.operators for Python expressions."""
 

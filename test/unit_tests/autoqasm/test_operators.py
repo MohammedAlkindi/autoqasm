@@ -619,11 +619,38 @@ def test_comparison_chained_multiple_operators() -> None:
         if 4 < a <= b <= c < 8:
             h(0)
 
-    ir = prog.build().to_ir()
-    assert "a > 4" in ir
-    assert "a <= b" in ir
-    assert "b <= c" in ir
-    assert "c < 8" in ir
+    expected = """OPENQASM 3.0;
+bit a;
+bit b;
+bit c;
+qubit[3] __qubits__;
+bit __bit_0__;
+__bit_0__ = measure __qubits__[0];
+a = __bit_0__;
+bit __bit_1__;
+__bit_1__ = measure __qubits__[1];
+b = __bit_1__;
+bit __bit_2__;
+__bit_2__ = measure __qubits__[2];
+c = __bit_2__;
+bool __bool_3__;
+__bool_3__ = a > 4;
+bool __bool_4__;
+__bool_4__ = a <= b;
+bool __bool_5__;
+__bool_5__ = __bool_3__ && __bool_4__;
+bool __bool_6__;
+__bool_6__ = b <= c;
+bool __bool_7__;
+__bool_7__ = __bool_5__ && __bool_6__;
+bool __bool_8__;
+__bool_8__ = c < 8;
+bool __bool_9__;
+__bool_9__ = __bool_7__ && __bool_8__;
+if (__bool_9__) {
+    h __qubits__[0];
+}"""
+    assert prog.build().to_ir() == expected
 
 
 def test_comparison_chained_with_equality_operator() -> None:
@@ -638,11 +665,32 @@ def test_comparison_chained_with_equality_operator() -> None:
         if 4 < a < b == c < 8:
             h(0)
 
-    ir = prog.build().to_ir()
-    assert "a > 4" in ir
-    assert "a < b" in ir
-    assert "b == c" in ir
-    assert "c < 8" in ir
+    expected = """OPENQASM 3.0;
+bit a;
+bit b;
+bit c;
+qubit[3] __qubits__;
+bit __bit_0__;
+__bit_0__ = measure __qubits__[0];
+a = __bit_0__;
+bit __bit_1__;
+__bit_1__ = measure __qubits__[1];
+b = __bit_1__;
+bit __bit_2__;
+__bit_2__ = measure __qubits__[2];
+c = __bit_2__;
+bool __bool_3__;
+__bool_3__ = a > 4 && a < b;
+bool __bool_4__;
+__bool_4__ = b == c;
+bool __bool_5__;
+__bool_5__ = __bool_3__ && __bool_4__;
+bool __bool_6__;
+__bool_6__ = __bool_5__ && c < 8;
+if (__bool_6__) {
+    h __qubits__[0];
+}"""
+    assert prog.build().to_ir() == expected
 
 
 def test_comparison_ops_py() -> None:
@@ -660,7 +708,8 @@ def test_comparison_ops_py() -> None:
         h = a <= g
         i = 0 <= a < b
         j = 0 <= b < a
-        assert all([c, d, not e, not f, h, i, not j])
+        k = 0 < a <= b <= 5
+        assert all([c, d, not e, not f, h, i, not j, not k])
 
     expected = """OPENQASM 3.0;"""
     assert prog.build().to_ir() == expected
